@@ -2,7 +2,7 @@ import streamlit as st
 from groq import Groq
 from pypdf import PdfReader
 
-MODEL = "llama-3.1-8b-instant"  # if you get a model error, use a current Llama name from Groq's models page
+MODEL = "openai/gpt-oss-20b"
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 st.set_page_config(page_title="Study Buddy", page_icon="📚", layout="wide")
