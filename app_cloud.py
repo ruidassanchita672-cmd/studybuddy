@@ -1,9 +1,11 @@
 import json
+import re
 import time
 from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 from groq import Groq
 from pypdf import PdfReader
 
@@ -143,6 +145,75 @@ def calc_streak(dates):
     return streak
 
 
+# ---------- Text to speech (uses the browser's built-in voice) ----------
+TTS_HTML = """
+<div style="font-family:sans-serif;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+  <button id="play">🔊 Listen</button>
+  <button id="pause">⏸️ Pause / Resume</button>
+  <button id="stop">⏹️ Stop</button>
+  <select id="rate">
+    <option value="0.8">Slow</option>
+    <option value="1" selected>Normal</option>
+    <option value="1.25">Fast</option>
+  </select>
+  <span id="msg" style="color:#e9e9ff;font-size:13px"></span>
+</div>
+<style>
+  button { background: linear-gradient(90deg,#6C63FF,#3EC6E0); color:white; border:none;
+           border-radius:10px; padding:8px 14px; font-weight:700; cursor:pointer; }
+  select { padding:7px; border-radius:10px; }
+</style>
+<script>
+  const text = __TEXT__;
+  const synth = window.speechSynthesis;
+  const msg = document.getElementById('msg');
+  if (!synth) { msg.textContent = 'Speech is not supported in this browser. Try Chrome or Edge.'; }
+
+  function chunks(t) {
+    const parts = t.match(/[^.!?]+[.!?]*\\s*/g) || [t];
+    const out = []; let cur = "";
+    for (const p of parts) {
+      if ((cur + p).length > 200 && cur) { out.push(cur); cur = ""; }
+      cur += p;
+    }
+    if (cur) out.push(cur);
+    return out;
+  }
+
+  document.getElementById('play').onclick = () => {
+    if (!synth) return;
+    synth.cancel();
+    const rate = parseFloat(document.getElementById('rate').value);
+    chunks(text).forEach(c => {
+      const u = new SpeechSynthesisUtterance(c);
+      u.rate = rate;
+      u.lang = 'en-IN';
+      synth.speak(u);
+    });
+  };
+  document.getElementById('pause').onclick = () => {
+    if (!synth) return;
+    if (synth.speaking && !synth.paused) synth.pause(); else synth.resume();
+  };
+  document.getElementById('stop').onclick = () => { if (synth) synth.cancel(); };
+  window.addEventListener('beforeunload', () => { if (synth) synth.cancel(); });
+</script>
+"""
+
+
+def clean_for_speech(text):
+    text = re.sub(r"[*_`#>]", "", text)
+    text = re.sub(r"^\s*[-•]\s*", "", text, flags=re.M)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def speak_widget(text):
+    clean = clean_for_speech(text or "")
+    if not clean:
+        return
+    payload = json.dumps(clean).replace("</", "<\\/")
+    components.html(TTS_HTML.replace("__TEXT__", payload), height=70)
 # ---------- Style ----------
 st.markdown("""
 <style>
