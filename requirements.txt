@@ -1,4 +1,2 @@
-streamlit
-pypdf
-groq
+streamlit>=1.30
 pandas
